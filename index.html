@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vietnam Macro Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <h1 class="mb-4 text-center">Vietnam Macro Data Dashboard</h1>
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Vietnam GDP Trend (Constant LCU)</h5>
+                        <canvas id="gdpChart" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">GDP Components (Latest Year)</h5>
+                        <canvas id="componentsChart" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            Papa.parse("raw_data.csv", {
+                download: true,
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    const data = results.data;
+                    
+                    const getYear = (dateStr) => {
+                        if (!dateStr) return '';
+                        return String(dateStr).substring(0, 4);
+                    };
+
+                    // --- Process for GDP Line Chart ---
+                    const gdpData = data.filter(row => row.variable_name === 'Vietnam GDP (Constant LCU)' && row.value != null);
+                    // Sort ascending by date
+                    gdpData.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+                    
+                    const gdpLabels = gdpData.map(row => getYear(row.date));
+                    const gdpValues = gdpData.map(row => row.value);
+
+                    const ctxGdp = document.getElementById('gdpChart').getContext('2d');
+                    new Chart(ctxGdp, {
+                        type: 'line',
+                        data: {
+                            labels: gdpLabels,
+                            datasets: [{
+                                label: 'Vietnam GDP (Constant LCU)',
+                                data: gdpValues,
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: false
+                                }
+                            }
+                        }
+                    });
+
+                    // --- Process for Components Bar Chart ---
+                    let latestDateStr = "";
+                    data.forEach(row => {
+                        if (row.date && String(row.date) > latestDateStr) {
+                            latestDateStr = String(row.date);
+                        }
+                    });
+
+                    const targetVariables = [
+                        'Vietnam Consumption (Constant LCU)',
+                        'Vietnam Government Spending (Constant LCU)',
+                        'Vietnam Investment (Constant LCU)',
+                        'Vietnam Exports (Constant LCU)',
+                        'Vietnam Imports (Constant LCU)'
+                    ];
+
+                    const latestData = data.filter(row => String(row.date) === latestDateStr && targetVariables.includes(row.variable_name));
+
+                    const compValues = targetVariables.map(tv => {
+                        const row = latestData.find(r => r.variable_name === tv);
+                        return row ? row.value : 0;
+                    });
+                    
+                    const shortLabels = [
+                        'Consumption',
+                        'Govt Spending',
+                        'Investment',
+                        'Exports',
+                        'Imports'
+                    ];
+
+                    const ctxComp = document.getElementById('componentsChart').getContext('2d');
+                    new Chart(ctxComp, {
+                        type: 'bar',
+                        data: {
+                            labels: shortLabels,
+                            datasets: [{
+                                label: 'Value (Constant LCU) in ' + getYear(latestDateStr),
+                                data: compValues,
+                                backgroundColor: [
+                                    'rgba(54, 162, 235, 0.6)',
+                                    'rgba(255, 99, 132, 0.6)',
+                                    'rgba(255, 206, 86, 0.6)',
+                                    'rgba(75, 192, 192, 0.6)',
+                                    'rgba(153, 102, 255, 0.6)'
+                                ],
+                                borderColor: [
+                                    'rgba(54, 162, 235, 1)',
+                                    'rgba(255, 99, 132, 1)',
+                                    'rgba(255, 206, 86, 1)',
+                                    'rgba(75, 192, 192, 1)',
+                                    'rgba(153, 102, 255, 1)'
+                                ],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
